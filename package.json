@@ -1,6 +1,6 @@
 {
   "name": "toolerance",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Convert one canonical tool/function schema to every provider dialect (OpenAI Chat + Responses, Anthropic, Gemini Developer + Vertex, AWS Bedrock) and get a report of exactly what each target cannot represent.",
   "license": "MIT",
   "type": "module",
