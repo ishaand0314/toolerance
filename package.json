@@ -48,6 +48,7 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "build": "tsc --build",
+    "build:playground": "node playground/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.7.0",
+    "esbuild": "^0.28.1",
     "fast-check": "^3.23.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

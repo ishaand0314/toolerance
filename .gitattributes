@@ -1,0 +1,5 @@
+# Normalize line endings to LF for all text so Biome and CI stay consistent
+# across Windows and Linux checkouts.
+* text=auto eol=lf
+*.png binary
+*.tgz binary

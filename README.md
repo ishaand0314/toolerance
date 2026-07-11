@@ -304,6 +304,24 @@ accepts your schema, or you learn what to change before the API rejects it.
   one file, so the narrow-versus-wide difference is readable at a glance. Two
   hand-written walkers would drift apart and start lying.
 
+## Playground
+
+A self-contained browser playground lives in [playground/index.html](playground/index.html).
+Open it in any browser (no server needed) to paste a tool schema and watch it
+convert to all six dialects side by side, each card showing what that dialect
+drops and whether it would accept the result. Everything runs client-side; nothing
+is sent anywhere.
+
+To rebuild it after changing the library:
+
+```bash
+pnpm build            # compile the library first
+pnpm build:playground # bundle it into playground/index.html
+```
+
+The build bundles the dependency-free library into a single inline script, so the
+page has no external requests.
+
 ## Development
 
 ```bash
