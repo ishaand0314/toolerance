@@ -15,6 +15,7 @@ import {
 import { lint } from "./lint.js";
 import { type LossNote, hasLoss } from "./notes.js";
 import { DIALECTS, type Dialect, isDialect } from "./schema.js";
+import { validate } from "./validate.js";
 
 /**
  * CLI entry. Uses the shared router from labkit-core for a consistent UX with
@@ -348,6 +349,55 @@ export function runLintCommand(ctx: cli.CommandContext, io: CliIo): number {
   return 0;
 }
 
+/**
+ * The `validate` command body, exposed for testing. Answers the hard question:
+ * would the provider reject this tool at call time? Exits 1 when the tool is
+ * invalid for the chosen dialect. This is distinct from `lint` (reshaping) and
+ * `--strict` (information loss): a tool can be lossless yet invalid.
+ */
+export function runValidateCommand(ctx: cli.CommandContext, io: CliIo): number {
+  const { flags } = ctx;
+  let from: Dialect;
+  let against: Dialect;
+  let text: string;
+  try {
+    against = requireDialect(flags.dialect, "dialect");
+    from = flags.from !== undefined ? requireDialect(flags.from, "from") : against;
+    text = readPayloadText(flags, io);
+  } catch (err) {
+    if (err instanceof UsageError) {
+      io.writeErr(`${err.message}\n`);
+      return 1;
+    }
+    throw err;
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(text);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    io.writeErr(`Input is not valid JSON: ${msg}\n`);
+    return 1;
+  }
+
+  const result = validate(from, against, payload, optionsFromFlags(flags));
+
+  if (flags.json) {
+    io.writeOut(`${JSON.stringify(result, null, 2)}\n`);
+  } else if (result.valid) {
+    io.writeOut(`VALID: ${against} should accept this tool.\n`);
+  } else {
+    io.writeOut(`INVALID: ${against} would reject this tool.\n`);
+    for (const e of result.errors) {
+      const where = e.path ? `  (${e.path})` : "";
+      io.writeErr(`  [${e.rule}] ${e.message}${where}\n`);
+    }
+  }
+
+  return result.valid ? 0 : 1;
+}
+
 const realIo: CliIo = {
   readFile: (path) => readFileSync(path, "utf8"),
   readStdin: () => readFileSync(0, "utf8"),
@@ -374,6 +424,15 @@ const lintCommand: cli.Command = {
   },
 };
 
+const validateCommand: cli.Command = {
+  name: "validate",
+  summary: "Check whether a dialect would reject a tool at call time (exit 1 if invalid)",
+  run(ctx) {
+    const code = runValidateCommand(ctx, realIo);
+    if (code !== 0) process.exitCode = code;
+  },
+};
+
 /** Only run the CLI when invoked directly, not when imported by tests. */
 function isMain(): boolean {
   const entry = argv[1];
@@ -385,7 +444,7 @@ if (isMain()) {
     {
       name: "toolerance",
       description: `Cross-lab tool-schema converter (${dialectList}, or "all")`,
-      commands: [convertCommand, lintCommand],
+      commands: [convertCommand, lintCommand, validateCommand],
       booleanFlags: ["json", "strict", "openai-strict"],
     },
     argv.slice(2),

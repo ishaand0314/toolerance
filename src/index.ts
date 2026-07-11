@@ -19,6 +19,12 @@ export {
   type DialectResult,
 } from "./convert.js";
 export { lint, type LintOptions } from "./lint.js";
+export {
+  validate,
+  type ValidateOptions,
+  type ValidationError,
+  type ValidationResult,
+} from "./validate.js";
 
 // ── Auto-detection + batch conversion ──────────────────────────────────────────
 export {
