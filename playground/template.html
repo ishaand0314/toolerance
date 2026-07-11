@@ -6,236 +6,212 @@
     <title>toolerance · playground</title>
     <style>
       /*
-       * Warm amber/green phosphor terminal. Frosted glass reads against a warm
-       * grained ground with one off-center amber glow (not a rainbow mesh).
-       * Severity is shown as an inline status swatch in the header, never a
-       * colored card rail. Neumorphic controls, tinted warm. Committed single
-       * dark world.
+       * Orange + white neumorphism. A single warm-white surface, soft dual
+       * shadows (light top-left, shadow bottom-right) model every control as
+       * pressed from the same slab — no glass, no blur, no glow bloom.
+       * Burnt-orange is the sole accent; severity gets its own separate,
+       * muted signal set so it never fights the accent. Committed single
+       * light world.
        */
       :root {
-        --bg: #0d0c09;            /* warm near-black */
-        --bg-2: #14120c;
-        --fg: #ece6d6;            /* warm paper */
-        --fg-soft: #b0a88f;
-        --fg-faint: #766f5c;
-        --amber: #e8a33d;         /* phosphor amber (accent) */
-        --green: #5fb87a;         /* signal green (secondary) */
-        --glass: rgba(236, 230, 214, 0.045);
-        --glass-strong: rgba(236, 230, 214, 0.08);
-        --glass-border: rgba(236, 230, 214, 0.12);
-        --glass-hi: rgba(236, 230, 214, 0.16);
-        --neu-dark: rgba(0, 0, 0, 0.6);
-        --neu-light: rgba(255, 240, 214, 0.045);
-        /* severity — a warm-compatible signal set, distinct from the accent */
-        --info: #8fa3b8;
-        --warning: #e8a33d;
-        --loss: #e46a6a;
-        --valid: #5fb87a;
-        --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+        --bg: #eef1f4;            /* warm-cool white, slightly blue-grey */
+        --surface: #eef1f4;
+        --fg: #2b2f36;
+        --fg-soft: #5c6470;
+        --fg-faint: #8b93a0;
+        --orange: #d9662b;        /* burnt orange (accent) */
+        --orange-deep: #b8501f;
+        --shadow-dark: #c7cdd6;
+        --shadow-light: #ffffff;
+        --border: rgba(43, 47, 54, 0.08);
+        /* severity — muted, distinct from the accent */
+        --info: #4d7ea8;
+        --warning: #b8901f;
+        --loss: #b8382a;
+        --valid: #3f8a5c;
+        --mono: "IBM Plex Mono", "Fira Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --sans: "IBM Plex Sans", "Noto Sans", -apple-system, "Segoe UI", sans-serif;
       }
       * { box-sizing: border-box; }
-      html { color-scheme: dark; }
-      /* Slim, themed scrollbars so overflowing code panes stay in the terminal
-         aesthetic instead of showing chunky default OS bars. */
-      * { scrollbar-width: thin; scrollbar-color: rgba(236, 230, 214, 0.22) transparent; }
+      html { color-scheme: light; }
+      * { scrollbar-width: thin; scrollbar-color: #c7cdd6 transparent; }
       ::-webkit-scrollbar { width: 9px; height: 9px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb {
-        background: rgba(236, 230, 214, 0.16);
+        background: #c7cdd6;
         border-radius: 999px;
         border: 2px solid transparent;
         background-clip: padding-box;
       }
-      ::-webkit-scrollbar-thumb:hover { background: rgba(232, 163, 61, 0.5); background-clip: padding-box; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--orange); background-clip: padding-box; }
       ::-webkit-scrollbar-corner { background: transparent; }
       body {
         margin: 0; min-height: 100vh;
-        font-family: var(--mono); font-size: 14px; line-height: 1.55;
+        font-family: var(--sans); font-size: 15px; line-height: 1.55;
         color: var(--fg); background: var(--bg);
         overflow-x: hidden;
       }
-      /* Warm ground: one off-center amber glow + a faint film grain. No rainbow. */
-      .ground {
-        position: fixed; inset: 0; z-index: -2;
-        background:
-          radial-gradient(60% 55% at 78% 8%, rgba(232, 163, 61, 0.16), transparent 62%),
-          radial-gradient(50% 50% at 12% 96%, rgba(95, 184, 122, 0.07), transparent 60%),
-          linear-gradient(180deg, #100e0a, #0a0906);
-      }
-      .grain {
-        position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.05;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      }
+      .ground { position: fixed; inset: 0; z-index: -2; background: var(--bg); }
+      .grain { display: none; }
       .wrap { max-width: 1400px; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2.25rem); }
 
-      /* ── Terminal shell ──────────────────────────────────────────────────── */
+      /* ── Neumorphic shell — a single raised slab ─────────────────────────── */
       .shell {
         margin: clamp(1.25rem, 4vw, 2.5rem) 0 2rem;
-        border-radius: 6px;                       /* terminals have squarer corners */
-        background: var(--glass);
-        backdrop-filter: blur(20px) saturate(150%);
-        -webkit-backdrop-filter: blur(20px) saturate(150%);
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 var(--glass-hi);
+        border-radius: 22px;
+        background: var(--surface);
+        box-shadow: 10px 10px 22px var(--shadow-dark), -10px -10px 22px var(--shadow-light);
         overflow: hidden;
       }
       .titlebar {
         display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-        padding: 0.6rem 1rem;
-        border-bottom: 1px solid var(--glass-border);
-        background: linear-gradient(180deg, rgba(232,163,61,0.05), transparent);
-        font-size: 0.78rem; color: var(--fg-faint); letter-spacing: 0.02em;
+        padding: 0.7rem 1.3rem;
+        font-family: var(--mono); font-size: 0.75rem; color: var(--fg-faint); letter-spacing: 0.02em;
+        border-bottom: 1px solid var(--border);
       }
-      .titlebar .who { color: var(--green); }
+      .titlebar .who { color: var(--orange); font-weight: 600; }
       .titlebar .rev { color: var(--fg-faint); }
-      .shell-body { padding: clamp(1.1rem, 3vw, 1.9rem); }
+      .shell-body { padding: clamp(1.4rem, 3vw, 2.4rem); }
 
       .eyebrow {
-        font-size: 0.7rem; letter-spacing: 0.28em; text-transform: uppercase;
-        color: var(--amber); margin: 0 0 0.7rem;
+        font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.28em; text-transform: uppercase;
+        color: var(--orange); margin: 0 0 0.7rem;
       }
       h1 {
-        margin: 0 0 0.5rem; font-size: clamp(1.4rem, 3.3vw, 1.95rem);
-        font-weight: 700; letter-spacing: -0.015em; line-height: 1.15; text-wrap: balance;
+        margin: 0 0 0.6rem; font-size: clamp(1.5rem, 3.3vw, 2.05rem);
+        font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance;
       }
-      h1 .cursor {
-        display: inline-block; width: 0.55ch; height: 1.02em; margin-left: 0.1ch;
-        background: var(--amber); vertical-align: text-bottom;
-        animation: blink 1.1s steps(1) infinite;
-      }
-      @keyframes blink { 50% { opacity: 0; } }
+      h1 .cursor { display: none; }
       .lede {
-        margin: 0; font-family: var(--sans); color: var(--fg-soft);
-        max-width: 62ch; font-size: 0.95rem;
+        margin: 0; color: var(--fg-soft);
+        max-width: 62ch; font-size: 0.98rem;
       }
 
-      /* ── Neumorphic controls, warm-tinted, used only where you interact ──── */
-      .toolbar { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; margin: 1.6rem 0 0.9rem; }
-      .prompt { color: var(--green); font-size: 0.88rem; }
+      /* ── Neumorphic controls — pressed from the same slab as the shell ──── */
+      .toolbar { display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: center; margin: 1.8rem 0 1.1rem; }
+      .prompt { font-family: var(--mono); color: var(--orange); font-size: 0.85rem; }
       .prompt b { color: var(--fg); font-weight: 600; }
       .neu {
         font: inherit; font-size: 0.85rem; color: var(--fg);
-        padding: 0.5rem 0.85rem; border: none; border-radius: 8px;
-        background: linear-gradient(150deg, #1a170f, #100d08);
-        box-shadow: 5px 5px 12px var(--neu-dark), -4px -4px 10px var(--neu-light);
+        padding: 0.6rem 1rem; border: none; border-radius: 12px;
+        background: var(--surface);
+        box-shadow: 5px 5px 11px var(--shadow-dark), -5px -5px 11px var(--shadow-light);
         cursor: pointer; transition: box-shadow 0.16s ease, transform 0.16s ease, color 0.16s ease;
       }
-      .neu:hover { color: #fff; }
-      .neu:active { box-shadow: inset 4px 4px 9px var(--neu-dark), inset -3px -3px 8px var(--neu-light); transform: translateY(1px); }
+      .neu:hover { color: var(--orange-deep); }
+      .neu:active {
+        box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+        transform: translateY(1px);
+      }
       select.neu {
-        appearance: none; padding-right: 2rem;
-        background-image:
-          linear-gradient(150deg, #1a170f, #100d08),
-          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b0a88f' fill='none' stroke-width='1.4'/%3E%3C/svg%3E");
-        background-repeat: no-repeat, no-repeat;
-        background-position: center, right 0.75rem center;
+        appearance: none; padding-right: 2.2rem;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235c6470' fill='none' stroke-width='1.4'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.9rem center;
       }
-      /* Style the open option list so it matches the terminal instead of the
-         browser's default white popup. */
-      select.neu option {
-        background: #14120c;
-        color: var(--fg);
-      }
+      select.neu option { background: #ffffff; color: var(--fg); }
       select.neu option:checked,
-      select.neu option:hover {
-        background: var(--amber);
-        color: #17130a;
-      }
+      select.neu option:hover { background: var(--orange); color: #fff; }
       button.go {
-        color: #17130a; font-weight: 700;
-        background: linear-gradient(150deg, #f0b455, #d68f2c);
-        box-shadow: 5px 5px 14px rgba(232,163,61,0.28), -4px -4px 10px var(--neu-light);
+        color: #fff; font-weight: 700;
+        background: linear-gradient(150deg, #e2803f, var(--orange));
+        box-shadow: 5px 5px 14px rgba(217,102,43,0.35), -5px -5px 11px var(--shadow-light);
       }
-      button.go:active { box-shadow: inset 3px 3px 9px rgba(120,80,20,0.6), inset -2px -2px 7px rgba(255,240,214,0.12); }
-      :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+      button.go:hover { color: #fff; }
+      button.go:active {
+        box-shadow: inset 3px 3px 8px rgba(120,55,10,0.45), inset -3px -3px 7px rgba(255,200,150,0.3);
+      }
+      :focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
 
-      /* Terminal input pane — square, sunken. */
+      /* Sunken input well — inset shadow, opposite of the raised controls. */
       .editor {
-        position: relative; border-radius: 4px;
-        background: rgba(6, 5, 3, 0.66);
-        border: 1px solid var(--glass-border);
-        box-shadow: inset 0 2px 16px rgba(0, 0, 0, 0.6);
+        position: relative; border-radius: 14px;
+        background: var(--surface);
+        box-shadow: inset 5px 5px 11px var(--shadow-dark), inset -5px -5px 11px var(--shadow-light);
         overflow: hidden;
       }
       .editor-gutter {
         position: absolute; top: 0; left: 0; bottom: 0; width: 2.4rem;
-        border-right: 1px solid rgba(236, 230, 214, 0.06);
-        background: rgba(232, 163, 61, 0.02); pointer-events: none;
+        border-right: 1px solid var(--border);
+        pointer-events: none;
       }
       textarea {
         display: block; width: 100%; min-height: 190px; margin: 0;
         padding: 0.9rem 1rem 0.9rem 3rem;
         font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
-        color: #d8e8c8; background: transparent; border: none;
+        color: var(--fg); background: transparent; border: none;
         resize: vertical; white-space: pre; overflow: auto; tab-size: 2;
       }
       textarea:focus { outline: none; }
 
-      .examples { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.75rem; align-items: center; }
-      .examples .lbl { font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-faint); }
+      .examples { margin-top: 1rem; }
+      .examples .lbl { display: block; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-faint); margin-bottom: 0.6rem; }
+      #examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, max-content)); gap: 0.9rem 1.1rem; }
       .chip {
-        font: inherit; font-size: 0.75rem; color: var(--fg-soft);
-        padding: 0.3rem 0.6rem; border-radius: 999px; cursor: pointer;
-        background: var(--glass); border: 1px solid var(--glass-border);
-        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        font: inherit; font-size: 0.78rem; color: var(--fg-soft); text-align: left;
+        padding: 0.55rem 0.9rem; border-radius: 10px; cursor: pointer; border: none;
+        background: var(--surface);
+        box-shadow: 4px 4px 9px var(--shadow-dark), -4px -4px 9px var(--shadow-light);
+        transition: color 0.15s, box-shadow 0.15s, transform 0.15s;
       }
-      .chip:hover { color: var(--fg); border-color: var(--amber); background: var(--glass-strong); }
+      .chip:hover { color: var(--orange-deep); transform: translateY(-1px); }
+      .chip:active {
+        box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+        transform: translateY(0);
+      }
 
-      .detected { font-size: 0.79rem; color: var(--fg-faint); margin: 0.95rem 0 0.3rem; min-height: 1.2em; }
-      .detected b { color: var(--green); }
+      .detected { font-family: var(--mono); font-size: 0.8rem; color: var(--fg-faint); margin: 1.1rem 0 0.3rem; min-height: 1.2em; }
+      .detected b { color: var(--orange); }
 
-      /* ── Glass result cards — square, no colored rail ────────────────────── */
-      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); gap: 1.05rem; margin: 0.6rem 0 0.5rem; }
+      /* ── Result cards — same raised-slab language as the shell ──────────── */
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); gap: 1.3rem; margin: 0.8rem 0 0.5rem; }
       .card {
-        display: flex; flex-direction: column; border-radius: 5px;
-        background: var(--glass);
-        backdrop-filter: blur(16px) saturate(150%);
-        -webkit-backdrop-filter: blur(16px) saturate(150%);
-        border: 1px solid var(--glass-border);
-        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4), inset 0 1px 0 var(--glass-hi);
+        display: flex; flex-direction: column; border-radius: 16px; min-width: 0;
+        background: var(--surface);
+        box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
         overflow: hidden; transition: transform 0.18s ease, box-shadow 0.18s ease;
       }
-      .card:hover { transform: translateY(-2px); box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5), inset 0 1px 0 var(--glass-hi); }
+      .card:hover { transform: translateY(-2px); }
       .card h2 {
-        margin: 0; padding: 0.6rem 0.9rem;
+        margin: 0; padding: 0.75rem 1.05rem;
         font-size: 0.86rem; font-weight: 600; letter-spacing: -0.01em;
         display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
-        border-bottom: 1px solid rgba(236, 230, 214, 0.08);
+        border-bottom: 1px solid var(--border);
       }
-      .h2-left { display: flex; align-items: center; gap: 0.5rem; }
+      .h2-left { display: flex; align-items: center; gap: 0.55rem; }
       /* Severity as an inline swatch, NOT a card-edge rail. */
       .swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
       .swatch.clean { background: var(--valid); } .swatch.info { background: var(--info); }
       .swatch.warning { background: var(--warning); } .swatch.loss { background: var(--loss); }
-      .badge { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 3px; }
+      .badge { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 0.15rem 0.55rem; border-radius: 999px; }
       .badge.valid   { color: var(--valid); background: color-mix(in srgb, var(--valid) 14%, transparent); }
       .badge.invalid { color: var(--loss);  background: color-mix(in srgb, var(--loss) 14%, transparent); }
       pre {
-        margin: 0; padding: 0.8rem 0.9rem;
+        margin: 0; padding: 0.85rem 1.05rem;
         font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
-        color: #d3e6c4; overflow-x: auto; flex: 1;
+        color: #3a3f47; flex: 1; min-width: 0; width: 100%;
+        white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;
+        background: #e6e9ed;
       }
-      .notes { padding: 0.55rem 0.9rem 0.75rem; border-top: 1px solid rgba(236, 230, 214, 0.08); display: grid; gap: 0.32rem; }
+      .notes { padding: 0.6rem 1.05rem 0.85rem; border-top: 1px solid var(--border); display: grid; gap: 0.32rem; }
       .note { font-size: 0.75rem; display: grid; grid-template-columns: 4.2rem 1fr; gap: 0.4rem; align-items: baseline; }
-      .note .sev { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.05em; }
+      .note .sev { font-family: var(--mono); font-size: 0.63rem; font-weight: 700; letter-spacing: 0.05em; }
       .note.info .sev { color: var(--info); } .note.warning .sev { color: var(--warning); } .note.loss .sev { color: var(--loss); }
       .note .msg { color: var(--fg); }
-      .note .path { color: var(--fg-faint); font-size: 0.7rem; }
-      .clean { font-size: 0.74rem; color: var(--valid); padding: 0.5rem 0.9rem 0.75rem; border-top: 1px solid rgba(236, 230, 214, 0.08); }
+      .note .path { font-family: var(--mono); color: var(--fg-faint); font-size: 0.7rem; }
+      .clean { font-size: 0.74rem; color: var(--valid); padding: 0.55rem 1.05rem 0.85rem; border-top: 1px solid var(--border); }
       .error {
-        grid-column: 1 / -1; color: var(--loss); padding: 1rem; font-size: 0.82rem;
-        border: 1px solid color-mix(in srgb, var(--loss) 35%, transparent); border-radius: 5px;
-        background: color-mix(in srgb, var(--loss) 8%, transparent);
+        grid-column: 1 / -1; color: var(--loss); padding: 1.1rem; font-size: 0.85rem;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--loss) 8%, var(--surface));
+        box-shadow: inset 3px 3px 8px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
       }
-      footer { padding: 1.4rem 0 2.5rem; color: var(--fg-faint); font-size: 0.8rem; }
-      footer a { color: var(--green); text-decoration: none; }
+      footer { padding: 1.6rem 0 2.5rem; color: var(--fg-faint); font-size: 0.82rem; }
+      footer a { color: var(--orange); text-decoration: none; font-weight: 600; }
       footer a:hover { text-decoration: underline; }
 
       @media (prefers-reduced-motion: reduce) {
-        h1 .cursor { animation: none; }
-        .card, .neu { transition: none; }
+        .card, .neu, .chip { transition: none; }
       }
     </style>
   </head>
