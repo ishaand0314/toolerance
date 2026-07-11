@@ -1,0 +1,48 @@
+name: Doc drift guard
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC.
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  check-seam-staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check verification-date staleness
+        id: check
+        run: |
+          set +e
+          output=$(node scripts/check-seam-staleness.mjs)
+          exit_code=$?
+          set -e
+          echo "$output"
+          {
+            echo "result<<SEAM_EOF"
+            echo "$output"
+            echo "SEAM_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "stale=$([ "$exit_code" = "1" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update staleness issue
+        if: steps.check.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.check.outputs.result }}
+        run: |
+          title=$(echo "$RESULT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).title))")
+          body=$(echo "$RESULT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).body))")
+
+          existing=$(gh issue list --search "in:title \"$title\"" --state open --json number --jq '.[0].number')
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --label "documentation"
+          fi

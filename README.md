@@ -304,6 +304,18 @@ accepts your schema, or you learn what to change before the API rejects it.
   one file, so the narrow-versus-wide difference is readable at a glance. Two
   hand-written walkers would drift apart and start lying.
 
+## Keeping the seams table honest
+
+Provider schema support changes, so `src/walk.ts` carries a verification date and a
+scheduled GitHub Action (`.github/workflows/doc-drift-guard.yml`) checks it weekly.
+Once the date is more than 90 days old, the workflow opens (or updates) a GitHub
+issue listing the stale-risk toggles that need re-checking against current provider
+docs. Run the check locally with:
+
+```bash
+node scripts/check-seam-staleness.mjs
+```
+
 ## Playground
 
 A self-contained browser playground lives in [playground/index.html](playground/index.html).
