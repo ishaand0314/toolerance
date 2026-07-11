@@ -158,6 +158,37 @@ INFO    Converted type union ["T","null"] to `nullable: true`  (parameters.prope
 `--from` defaults to `--dialect` when omitted, which lints the schema as its own
 dialect.
 
+### `validate`: will the provider reject this at call time?
+
+`validate` answers a different question from `lint`. `lint` tells you what a
+dialect would reshape; `validate` tells you whether the provider's API would
+refuse the tool with a 400. It checks the hard rules: the name must match the
+provider's regex and length limit, the root must be `type:"object"`, and nesting
+must stay within the provider's depth limit.
+
+It runs the real conversion first, so it judges the schema that would actually be
+sent. A `["string","null"]` union validates clean for Gemini, because the
+converter rewrites it to `nullable:true` before sending.
+
+```bash
+toolerance validate --dialect anthropic --from openai --file tool.json
+```
+```
+INVALID: anthropic would reject this tool.
+  [name.pattern] Tool name "my.tool" has characters anthropic rejects (allowed: letters, digits, underscore, hyphen)  (name)
+```
+
+Exit code is 0 when valid, 1 when invalid, so you can gate a deploy on it. Add
+`--json` for `{ valid, errors, dialect }`.
+
+The three checks, side by side:
+
+| Command | Question it answers |
+| --- | --- |
+| `lint` | What would this dialect reshape or drop? (advisory) |
+| `convert --strict` | Does converting lose any information? (gates on `LOSS`) |
+| `validate` | Would the provider reject this tool at call time? (gates on rejection) |
+
 ### Flags
 
 | Flag | Effect |

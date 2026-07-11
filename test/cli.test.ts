@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CliIo } from "../src/cli.js";
-import { runConvertCommand, runLintCommand } from "../src/cli.js";
+import { runConvertCommand, runLintCommand, runValidateCommand } from "../src/cli.js";
 
 /**
  * CLI tests drive the command bodies with an injected `CliIo`, so nothing
@@ -287,5 +287,46 @@ describe("convert batch input", () => {
     // Output is valid and the truncation was reported, not thrown.
     expect(() => JSON.parse(io.out)).not.toThrow();
     expect(io.err.toLowerCase()).toContain("nests deeper");
+  });
+});
+
+describe("validate command", () => {
+  const CLEAN = JSON.stringify({
+    type: "function",
+    function: { name: "get_weather", parameters: { type: "object" } },
+  });
+  const BAD_NAME = JSON.stringify({
+    type: "function",
+    function: { name: "my.tool", parameters: { type: "object" } },
+  });
+
+  it("a valid tool exits 0 and says VALID", () => {
+    const io = fakeIo({ readStdin: () => CLEAN });
+    const code = runValidateCommand(ctx({ dialect: "anthropic", from: "openai" }), io);
+    expect(code).toBe(0);
+    expect(io.out).toContain("VALID");
+  });
+
+  it("an invalid tool exits 1 and lists the broken rule", () => {
+    const io = fakeIo({ readStdin: () => BAD_NAME });
+    const code = runValidateCommand(ctx({ dialect: "anthropic", from: "openai" }), io);
+    expect(code).toBe(1);
+    expect(io.out).toContain("INVALID");
+    expect(io.err).toContain("name.pattern");
+  });
+
+  it("--json emits the structured verdict", () => {
+    const io = fakeIo({ readStdin: () => BAD_NAME });
+    const code = runValidateCommand(ctx({ dialect: "anthropic", from: "openai", json: true }), io);
+    expect(code).toBe(1);
+    const parsed = JSON.parse(io.out) as { valid: boolean; errors: { rule: string }[] };
+    expect(parsed.valid).toBe(false);
+    expect(parsed.errors.length).toBeGreaterThan(0);
+  });
+
+  it("missing --dialect exits 1", () => {
+    const io = fakeIo({ readStdin: () => CLEAN });
+    const code = runValidateCommand(ctx({ from: "openai" }), io);
+    expect(code).toBe(1);
   });
 });
