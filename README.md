@@ -101,6 +101,42 @@ toolerance convert --from openai --to all --file tool.json
 `--to all` prints each dialect in a labeled section (`=== gemini-vertex ===`) with
 its notes underneath. Add `--json` to get `{ outputs, notes }` keyed by dialect.
 
+### `--from auto`: detect the source dialect
+
+If you do not want to name the source, pass `--from auto` and `toolerance` reads
+the envelope shape to figure it out. It reports what it detected on stderr:
+
+```bash
+echo '{"name":"get_weather","input_schema":{"type":"object"}}' \
+  | toolerance convert --from auto --to openai
+```
+```
+Detected source dialect: anthropic (has an `input_schema` (Anthropic))
+```
+
+If the shape is unrecognizable, it exits 1 and asks you to pass an explicit
+`--from`.
+
+### Batch: convert many tools at once
+
+A real toolset is more than one tool. Pass a JSON array of tool definitions, or an
+OpenAI `{ "tools": [ ... ] }` block, and every tool converts in one run. Each tool
+is converted independently, so one tool's notes never leak into another's.
+
+```bash
+toolerance convert --from openai --to anthropic --file my-tools.json
+```
+```
+=== tool[0] ===
+{ "name": "get_weather", "input_schema": { ... } }
+=== tool[1] ===
+{ "name": "search", "input_schema": { ... } }
+```
+
+With `--json`, a batch returns `{ "tools": [ { index, output, notes }, ... ] }`. A
+single tool keeps the flat `{ output, notes }` shape. `--strict` exits 1 if any
+tool in the batch has a loss.
+
 ### `lint`: check a schema against a dialect
 
 `lint` normalizes your tool and walks it through a target dialect's rules, showing
@@ -126,7 +162,7 @@ dialect.
 
 | Flag | Effect |
 | --- | --- |
-| `--from <dialect>` | how to unwrap the input (required for `convert`) |
+| `--from <dialect>` or `--from auto` | how to unwrap the input, or `auto` to detect it (required for `convert`) |
 | `--to <dialect>` or `--to all` | which dialect(s) to emit (required for `convert`) |
 | `--dialect <dialect>` | the dialect to lint against (required for `lint`) |
 | `--file <path>` | read the payload from a file instead of stdin |

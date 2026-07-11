@@ -45,6 +45,21 @@ describe("properties: never throws", () => {
       { numRuns: 200 },
     );
   });
+
+  it("never throws on a pathologically deep schema (bounded, not a stack overflow)", () => {
+    // Build a valid schema far deeper than the stack could recurse unguarded.
+    let p: ObjectSchema = { type: "object" };
+    for (let i = 0; i < 5000; i++) p = { type: "object", properties: { x: p } };
+    const payload = { type: "function", function: { name: "deep", parameters: p } };
+    for (const to of DIALECTS) {
+      expect(() => convert("openai", to, payload)).not.toThrow();
+    }
+    // convertAll walks the same tree once for every dialect.
+    expect(() => convertAll("openai", payload)).not.toThrow();
+    // The truncation is reported as a warning, never thrown.
+    const { notes } = convert("openai", "anthropic", payload);
+    expect(notes.some((n) => n.message.toLowerCase().includes("nests deeper"))).toBe(true);
+  });
 });
 
 describe("properties: honesty invariants", () => {

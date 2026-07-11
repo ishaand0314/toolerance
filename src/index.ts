@@ -20,6 +20,18 @@ export {
 } from "./convert.js";
 export { lint, type LintOptions } from "./lint.js";
 
+// ── Auto-detection + batch conversion ──────────────────────────────────────────
+export {
+  detectDialect,
+  resolveFrom,
+  extractTools,
+  convertTools,
+  convertAllTools,
+  type DetectionResult,
+  type BatchItemResult,
+  type BatchAllItemResult,
+} from "./convert.js";
+
 // ── The IR and its readers ─────────────────────────────────────────────────────
 export {
   DIALECTS,
