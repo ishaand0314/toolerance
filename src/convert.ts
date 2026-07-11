@@ -10,6 +10,7 @@
  * bottom exactly as the transformation happened. Nothing throws.
  */
 
+import { type DetectionResult, detectDialect } from "./detect.js";
 import { normalize } from "./normalize.js";
 import { type ConvertResult, type LossNote, NoteCollector } from "./notes.js";
 import {
@@ -21,7 +22,7 @@ import {
   parseOpenAI,
   parseOpenAIResponses,
 } from "./parse.js";
-import { DIALECTS, type Dialect, type ToolDef } from "./schema.js";
+import { DIALECTS, type Dialect, type ToolDef, asArray, asRecord } from "./schema.js";
 import {
   type SerializeOptions,
   toAnthropic,
@@ -33,6 +34,7 @@ import {
 } from "./serialize.js";
 
 export { isDialect } from "./schema.js";
+export { detectDialect, type DetectionResult } from "./detect.js";
 
 /** Options threaded through a conversion. */
 export interface ConvertOptions extends SerializeOptions {
@@ -123,4 +125,93 @@ export function convertAll(
     const { output, notes } = SERIALIZERS[dialect](tool, priors, options);
     return { dialect, output, notes };
   });
+}
+
+// ── Auto-detection + batch conversion ─────────────────────────────────────────
+
+/**
+ * Resolve a source dialect that may be the literal `"auto"`. When `from` is
+ * `"auto"`, detect it from the payload shape; when detection fails, throw a
+ * plain Error (the only throwing path in this file, used by the CLI's own
+ * try/catch to ask for an explicit `--from`). A concrete dialect passes through.
+ */
+export function resolveFrom(
+  from: Dialect | "auto",
+  payload: unknown,
+): { dialect: Dialect; detection: DetectionResult | null } {
+  if (from !== "auto") return { dialect: from, detection: null };
+  const detection = detectDialect(payload);
+  if (detection === null) {
+    throw new Error(
+      "Could not auto-detect the source dialect; pass an explicit --from (openai, openai-responses, anthropic, gemini-developer, gemini-vertex, bedrock)",
+    );
+  }
+  return { dialect: detection.dialect, detection };
+}
+
+/**
+ * Pull the individual tool payloads out of a multi-tool container. Accepts:
+ *   - a bare array of tool payloads,
+ *   - an OpenAI `{ tools: [...] }` block,
+ *   - a Gemini `{ functionDeclarations: [...] }` block (each declaration becomes
+ *     one tool, so a batch of Gemini tools round-trips),
+ *   - a single tool payload (returned as a one-element list).
+ * Never throws; junk collapses to a single-element list containing the junk,
+ * which the parser will then coerce.
+ */
+export function extractTools(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload;
+  const root = asRecord(payload);
+  if (Array.isArray(root.tools)) return root.tools;
+  // A multi-declaration Gemini block: split into one payload per declaration so
+  // each converts independently. A single-declaration block stays whole (its
+  // parser handles the wrapper).
+  const decls = asArray(root.functionDeclarations);
+  if (decls.length > 1) {
+    return decls.map((d) => ({ functionDeclarations: [d] }));
+  }
+  return [payload];
+}
+
+/** One tool's result inside a batch conversion. */
+export interface BatchItemResult {
+  /** 0-based index of the tool in the input batch. */
+  readonly index: number;
+  readonly output: unknown;
+  readonly notes: LossNote[];
+}
+
+/**
+ * Convert every tool in a batch payload from one dialect to another. Each tool
+ * is converted independently; one tool's notes never bleed into another's. A
+ * single-tool payload yields a one-element result. Never throws.
+ */
+export function convertTools(
+  from: Dialect,
+  to: Dialect,
+  payload: unknown,
+  options: ConvertOptions = {},
+): BatchItemResult[] {
+  return extractTools(payload).map((toolPayload, index) => {
+    const { output, notes } = convert(from, to, toolPayload, options);
+    return { index, output, notes };
+  });
+}
+
+/** One tool's `--to all` matrix inside a batch. */
+export interface BatchAllItemResult {
+  readonly index: number;
+  readonly results: DialectResult[];
+}
+
+/** Batch form of `convertAll`: every tool, to every dialect. Never throws. */
+export function convertAllTools(
+  from: Dialect,
+  payload: unknown,
+  options: ConvertOptions = {},
+): BatchAllItemResult[] {
+  return extractTools(payload).map((toolPayload, index) => ({
+    index,
+    results: convertAll(from, toolPayload, options),
+  }));
 }

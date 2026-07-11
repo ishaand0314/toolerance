@@ -109,3 +109,50 @@ export function asSchema(value: unknown): JSONSchema {
 export function cloneSchema<T>(value: T): T {
   return structuredClone(value);
 }
+
+/**
+ * The deepest structural nesting the pipeline will process. A well-formed tool
+ * schema is nowhere near this deep; a schema deeper than this is almost always
+ * pathological (accidental or adversarial) and would otherwise overflow the call
+ * stack in the recursive clone/walk. We never want to throw, so
+ * `boundedCloneSchema` truncates below this depth instead.
+ */
+export const MAX_STRUCTURAL_DEPTH = 200;
+
+/**
+ * Depth-bounded deep clone. Behaves like `cloneSchema` for normal schemas, but
+ * any subtree deeper than `maxDepth` is replaced with an empty object schema and
+ * `onTruncate` is invoked once (with the deepest path reached) so the caller can
+ * record a note. This is the single guard that keeps every downstream recursive
+ * pass (ref inlining, nullability, the dialect walker) within a safe stack depth,
+ * upholding the never-throw contract on adversarially deep input. Never throws.
+ */
+export function boundedCloneSchema(
+  value: unknown,
+  maxDepth: number = MAX_STRUCTURAL_DEPTH,
+  onTruncate?: (path: string) => void,
+): unknown {
+  let truncated = false;
+  const notify = (path: string) => {
+    if (!truncated) {
+      truncated = true;
+      onTruncate?.(path);
+    }
+  };
+  const clone = (v: unknown, depth: number, path: string): unknown => {
+    if (typeof v !== "object" || v === null) return v;
+    if (depth >= maxDepth) {
+      notify(path);
+      return {};
+    }
+    if (Array.isArray(v)) {
+      return v.map((item, i) => clone(item, depth + 1, `${path}[${i}]`));
+    }
+    const out: Record<string, unknown> = {};
+    for (const [k, sub] of Object.entries(v as Record<string, unknown>)) {
+      out[k] = clone(sub, depth + 1, `${path}.${k}`);
+    }
+    return out;
+  };
+  return clone(value, 0, "parameters");
+}

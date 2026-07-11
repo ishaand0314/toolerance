@@ -23,12 +23,13 @@
 import type { NoteCollector } from "./notes.js";
 import {
   type JSONSchema,
+  MAX_STRUCTURAL_DEPTH,
   type ObjectSchema,
   type ToolDef,
   asArray,
   asRecord,
   asSchema,
-  cloneSchema,
+  boundedCloneSchema,
   isObjectSchema,
 } from "./schema.js";
 
@@ -91,7 +92,15 @@ export function normalize(
     parameters = { type: "object" };
   }
 
-  const root = cloneSchema(parameters) as ObjectSchema;
+  // Clone with a hard structural-depth bound. A schema deeper than
+  // MAX_STRUCTURAL_DEPTH is pathological; truncating it (with a note) keeps every
+  // downstream recursive pass within a safe call-stack depth so nothing throws.
+  const root = boundedCloneSchema(parameters, MAX_STRUCTURAL_DEPTH, (path) => {
+    notes.warning(
+      `Schema nests deeper than ${MAX_STRUCTURAL_DEPTH} levels; truncated the over-deep subtree (it would exceed provider and parser limits)`,
+      path,
+    );
+  }) as ObjectSchema;
 
   // 2 + 3. Inline refs, detecting cycles.
   const defs = collectDefs(root, notes);
