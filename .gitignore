@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+*.tsbuildinfo
+HANDOFF.md
+
+# runtime lock, not source
+.claude/scheduled_tasks.lock

@@ -1,0 +1,69 @@
+{
+  "name": "toolerance",
+  "version": "0.1.0",
+  "description": "Convert one canonical tool/function schema to every provider dialect (OpenAI Chat + Responses, Anthropic, Gemini Developer + Vertex, AWS Bedrock) and get a report of exactly what each target cannot represent.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "toolerance": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "keywords": [
+    "llm",
+    "tool",
+    "tools",
+    "function-calling",
+    "json-schema",
+    "openai",
+    "anthropic",
+    "gemini",
+    "vertex",
+    "bedrock",
+    "convert",
+    "schema",
+    "cli"
+  ],
+  "homepage": "https://github.com/ishaand0314/toolerance#readme",
+  "bugs": {
+    "url": "https://github.com/ishaand0314/toolerance/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishaand0314/toolerance.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "tsc --build",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepublishOnly": "tsc --build"
+  },
+  "dependencies": {
+    "labkit-core": "^0.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.7.0",
+    "fast-check": "^3.23.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
